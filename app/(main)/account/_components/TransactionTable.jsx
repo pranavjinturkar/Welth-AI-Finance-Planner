@@ -35,6 +35,8 @@ import { categoryColors } from "@/data/categories";
 import { Badge } from "@/components/ui/badge";
 import {
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ChevronUp,
   Clock,
   MoreHorizontal,
@@ -51,6 +53,8 @@ import { bulkDeleteTransactions } from "@/actions/accounts";
 import { toast } from "sonner";
 import { BarLoader } from "react-spinners";
 
+const ITEMS_PER_PAGE = 10;
+
 const RECURRING_INTERVALS = {
   DAILY: "Daily",
   WEEKLY: "Weekly",
@@ -65,6 +69,7 @@ const TransactionTable = ({ transactions }) => {
     field: "date",
     direction: "desc",
   });
+  const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [recurringFilter, setRecurringFilter] = useState("");
@@ -125,6 +130,18 @@ const TransactionTable = ({ transactions }) => {
     return result;
   }, [transactions, searchTerm, typeFilter, recurringFilter, sortConfig]);
 
+  // Pagination calculations
+  const totalPages = Math.ceil(
+    filteredAndSortedTransactions.length / ITEMS_PER_PAGE
+  );
+  const paginatedTransactions = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredAndSortedTransactions.slice(
+      startIndex,
+      startIndex + ITEMS_PER_PAGE
+    );
+  }, [filteredAndSortedTransactions, currentPage]);
+
   const handleSort = (field) => {
     setSortConfig((current) => ({
       field,
@@ -145,9 +162,9 @@ const TransactionTable = ({ transactions }) => {
 
   const handleSelectAll = () => {
     setSelectedIds((current) =>
-      current.length === filteredAndSortedTransactions.length
+      current.length === paginatedTransactions.length
         ? []
-        : filteredAndSortedTransactions.map((t) => t.id)
+        : paginatedTransactions.map((t) => t.id)
     );
   };
 
@@ -176,6 +193,12 @@ const TransactionTable = ({ transactions }) => {
     setRecurringFilter("");
     setTypeFilter("");
     setSelectedIds([]);
+    setCurrentPage(1);
+  };
+
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+    setSelectedIds([]); // Clear selections on page change
   };
 
   return (
@@ -220,6 +243,7 @@ const TransactionTable = ({ transactions }) => {
             </SelectContent>
           </Select>
 
+          {/* Bulk Actions */}
           {selectedIds.length > 0 && (
             <div className="flex items-center gap-2">
               <Button
@@ -246,7 +270,7 @@ const TransactionTable = ({ transactions }) => {
         </div>
       </div>
 
-      {/* Transactions */}
+      {/* Transaction Table */}
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -254,9 +278,8 @@ const TransactionTable = ({ transactions }) => {
               <TableHead className="w-[50px]">
                 <Checkbox
                   checked={
-                    selectedIds.length ===
-                      filteredAndSortedTransactions.length &&
-                    filteredAndSortedTransactions.length > 0
+                    selectedIds.length === paginatedTransactions.length &&
+                    paginatedTransactions.length > 0
                   }
                   onCheckedChange={handleSelectAll}
                 />
@@ -309,7 +332,7 @@ const TransactionTable = ({ transactions }) => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredAndSortedTransactions.length === 0 ? (
+            {paginatedTransactions.length === 0 ? (
               <TableRow>
                 <TableCell
                   colSpan={7}
@@ -319,12 +342,12 @@ const TransactionTable = ({ transactions }) => {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredAndSortedTransactions.map((transaction) => (
+              paginatedTransactions.map((transaction) => (
                 <TableRow key={transaction.id}>
                   <TableCell>
                     <Checkbox
-                      onCheckedChange={() => handleSelect(transaction.id)}
                       checked={selectedIds.includes(transaction.id)}
+                      onCheckedChange={() => handleSelect(transaction.id)}
                     />
                   </TableCell>
                   <TableCell>
@@ -421,6 +444,31 @@ const TransactionTable = ({ transactions }) => {
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-sm">
+            Page {currentPage} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
